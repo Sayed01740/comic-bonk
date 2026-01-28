@@ -140,22 +140,56 @@ class Cloud {
 
 // --- GAME ENTITIES ---
 
-class Entity {
-  x: number;
-  y: number;
-  radius: number;
-  type: EntityType;
-  wobble: number;
-  vx: number;
-  vy: number;
-  color: string;
-  isMissionTarget: boolean = false;
+// --- POOLING INFRASTRUCTURE ---
 
-  constructor(width: number, height: number, difficulty: number = 0, missionType?: MissionType) {
+class Pool<T> {
+  private items: T[] = [];
+  private factory: () => T;
+  private reset: (item: T) => void;
+
+  constructor(factory: () => T, reset: (item: T) => void, initialSize: number) {
+    this.factory = factory;
+    this.reset = reset;
+    for (let i = 0; i < initialSize; i++) {
+      this.items.push(this.factory());
+    }
+  }
+
+  get(): T {
+    if (this.items.length > 0) {
+      const item = this.items.pop()!;
+      this.reset(item);
+      return item;
+    }
+    return this.factory();
+  }
+
+  release(item: T) {
+    this.items.push(item);
+  }
+}
+
+// --- GAME ENTITIES ---
+
+class Entity {
+  x: number = 0;
+  y: number = 0;
+  radius: number = 35;
+  type: EntityType = 'normal';
+  wobble: number = 0;
+  vx: number = 0;
+  vy: number = 0;
+  color: string = '#00BFFF';
+  isMissionTarget: boolean = false;
+  active: boolean = false;
+
+  spawn(width: number, height: number, difficulty: number = 0, missionType?: MissionType) {
+    this.active = true;
     this.x = Math.random() * (width - 80) + 40;
     this.y = Math.random() * (height - 80) + 40;
     this.wobble = Math.random() * 100;
     this.radius = 35;
+    this.isMissionTarget = false;
     
     // Mission-Aware Spawning
     let mineChance = 0.12 + (difficulty * 0.15);
@@ -194,16 +228,21 @@ class Entity {
   }
 
   update(width: number, height: number) {
+    if (!this.active) return;
     this.wobble += 0.15;
     this.x += this.vx;
     this.y += this.vy;
+    
+    // Boundary checks with bounce
     if (this.x < this.radius) { this.x = this.radius; this.vx *= -1; }
-    if (this.x > width - this.radius) { this.x = width - this.radius; this.vx *= -1; }
+    else if (this.x > width - this.radius) { this.x = width - this.radius; this.vx *= -1; }
+    
     if (this.y < this.radius) { this.y = this.radius; this.vy *= -1; }
-    if (this.y > height - this.radius) { this.y = height - this.radius; this.vy *= -1; }
+    else if (this.y > height - this.radius) { this.y = height - this.radius; this.vy *= -1; }
   }
 
   draw(ctx: CanvasRenderingContext2D) {
+    if (!this.active) return;
     ctx.save();
     ctx.translate(this.x, this.y);
     
@@ -224,13 +263,23 @@ class Entity {
       ctx.fill();
       ctx.lineWidth = 4;
       ctx.strokeStyle = 'black';
-      for(let i=0; i<8; i++) {
-        const angle = (Math.PI * 2 / 8) * i + (this.wobble * 0.05);
-        ctx.beginPath();
-        ctx.moveTo(Math.cos(angle) * (this.radius - 10), Math.sin(angle) * (this.radius - 10));
-        ctx.lineTo(Math.cos(angle) * (this.radius + 10), Math.sin(angle) * (this.radius + 10));
-        ctx.stroke();
+      // Optimize mine spikes drawing
+      const spikeCount = 8;
+      const angleStep = (Math.PI * 2) / spikeCount;
+      const offset = this.wobble * 0.05;
+      const innerR = this.radius - 10;
+      const outerR = this.radius + 10;
+      
+      ctx.beginPath();
+      for(let i=0; i<spikeCount; i++) {
+        const angle = angleStep * i + offset;
+        const ca = Math.cos(angle);
+        const sa = Math.sin(angle);
+        ctx.moveTo(ca * innerR, sa * innerR);
+        ctx.lineTo(ca * outerR, sa * outerR);
       }
+      ctx.stroke();
+
       ctx.fillStyle = 'red';
       ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
     } else {
@@ -241,10 +290,13 @@ class Entity {
       ctx.lineWidth = 4;
       ctx.strokeStyle = 'black';
       ctx.stroke();
+      
+      // Glint
       ctx.beginPath();
       ctx.arc(-8, -8, 6, 0, Math.PI * 2);
       ctx.fillStyle = 'white';
       ctx.fill();
+      
       if (this.type === 'fast') {
         ctx.fillStyle = 'black';
         ctx.beginPath();
@@ -262,15 +314,16 @@ class Entity {
 }
 
 class PopText {
-  x: number;
-  y: number;
-  text: string;
-  life: number;
-  vy: number;
-  color: string;
-  size: number;
+  x: number = 0;
+  y: number = 0;
+  text: string = '';
+  life: number = 0;
+  vy: number = 0;
+  color: string = 'white';
+  size: number = 50;
+  active: boolean = false;
 
-  constructor(x: number, y: number, text: string, color: string = 'white', size: number = 50) {
+  spawn(x: number, y: number, text: string, color: string = 'white', size: number = 50) {
     this.x = x;
     this.y = y;
     this.text = text;
@@ -278,15 +331,19 @@ class PopText {
     this.vy = -3;
     this.color = color;
     this.size = size;
+    this.active = true;
   }
 
   update() {
+    if (!this.active) return;
     this.y += this.vy;
     this.vy *= 0.95;
     this.life -= 0.02;
+    if (this.life <= 0) this.active = false;
   }
 
   draw(ctx: CanvasRenderingContext2D) {
+    if (!this.active) return;
     ctx.save();
     ctx.translate(this.x, this.y);
     const scale = 1 + (1 - this.life) * 0.5;
@@ -304,18 +361,19 @@ class PopText {
 }
 
 class Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  life: number;
-  color: string;
-  size: number;
-  shape: string;
-  rotation: number;
-  rotSpeed: number;
+  x: number = 0;
+  y: number = 0;
+  vx: number = 0;
+  vy: number = 0;
+  life: number = 0;
+  color: string = '#FFF';
+  size: number = 0;
+  shape: string = 'circle';
+  rotation: number = 0;
+  rotSpeed: number = 0;
+  active: boolean = false;
 
-  constructor(x: number, y: number, baseColor: string) {
+  spawn(x: number, y: number, baseColor: string) {
     this.x = x;
     this.y = y;
     const angle = Math.random() * Math.PI * 2;
@@ -326,23 +384,33 @@ class Particle {
     this.size = Math.random() * 10 + 4;
     this.rotation = Math.random() * Math.PI * 2;
     this.rotSpeed = (Math.random() - 0.5) * 0.4;
+    this.active = true;
+    
     const rand = Math.random();
     if (rand < 0.15) this.color = '#FFFFFF';
     else if (rand < 0.3) this.color = '#FFD700'; 
     else this.color = baseColor;
-    const shapes = ['circle', 'square', 'triangle', 'star'];
-    this.shape = shapes[Math.floor(Math.random() * shapes.length)];
+    
+    // Simple shape selection without array allocation
+    const r = Math.random();
+    if (r < 0.25) this.shape = 'circle';
+    else if (r < 0.5) this.shape = 'square';
+    else if (r < 0.75) this.shape = 'triangle';
+    else this.shape = 'star';
   }
 
   update() {
+    if (!this.active) return;
     this.x += this.vx;
     this.y += this.vy;
     this.vy += 0.1; // Slight gravity
     this.rotation += this.rotSpeed;
     this.life -= 0.025;
+    if (this.life <= 0) this.active = false;
   }
 
   draw(ctx: CanvasRenderingContext2D) {
+    if (!this.active) return;
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.rotation);
@@ -351,11 +419,30 @@ class Particle {
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    if (this.shape === 'square') ctx.rect(-this.size/2, -this.size/2, this.size, this.size);
-    else if (this.shape === 'triangle') { ctx.moveTo(0, -this.size/2); ctx.lineTo(this.size/2, this.size/2); ctx.lineTo(-this.size/2, this.size/2); ctx.closePath(); }
-    else if (this.shape === 'star') { ctx.moveTo(0, -this.size); ctx.lineTo(this.size/4, -this.size/4); ctx.lineTo(this.size, 0); ctx.lineTo(0, this.size); ctx.closePath(); }
-    else ctx.arc(0, 0, this.size/2, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke(); ctx.restore();
+    
+    const s = this.size;
+    const hs = s / 2;
+    
+    if (this.shape === 'square') {
+        ctx.rect(-hs, -hs, s, s);
+    } else if (this.shape === 'triangle') { 
+        ctx.moveTo(0, -hs); 
+        ctx.lineTo(hs, hs); 
+        ctx.lineTo(-hs, hs); 
+        ctx.closePath(); 
+    } else if (this.shape === 'star') { 
+        ctx.moveTo(0, -s); 
+        ctx.lineTo(s/4, -s/4); 
+        ctx.lineTo(s, 0); 
+        ctx.lineTo(0, s); 
+        ctx.closePath(); 
+    } else {
+        ctx.arc(0, 0, hs, 0, Math.PI * 2);
+    }
+    
+    ctx.fill(); 
+    ctx.stroke(); 
+    ctx.restore();
   }
 }
 
@@ -458,7 +545,11 @@ const GameCanvas: React.FC<GameCanvasProps> = (props) => {
     mouse: { x: 0, y: 0 }, player: { x: 0, y: 0, angle: 0, dashing: false },
     entities: [] as Entity[], popTexts: [] as PopText[], particles: [] as Particle[],
     clouds: [] as Cloud[], panels: [] as ComicPanel[], buildings: [] as number[], hammerPath: [] as {x: number, y: number, life: number}[],
-    mission: null as Mission | null, combo: 0, powerCharge: 0, shockRadius: 0, screenFlash: 0
+    mission: null as Mission | null, combo: 0, powerCharge: 0, shockRadius: 0, screenFlash: 0,
+    // Pools
+    entityPool: new Pool<Entity>(() => new Entity(), (e) => e.active = false, 20),
+    particlePool: new Pool<Particle>(() => new Particle(), (p) => p.active = false, 100),
+    popTextPool: new Pool<PopText>(() => new PopText(), (p) => p.active = false, 20)
   });
 
   const generateMission = (): Mission => {
@@ -473,7 +564,7 @@ const GameCanvas: React.FC<GameCanvasProps> = (props) => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Optimize for no transparency
     if (!ctx) return;
 
     let animationFrameId: number;
@@ -520,6 +611,20 @@ const GameCanvas: React.FC<GameCanvasProps> = (props) => {
       }
     };
 
+    const spawnPopText = (x: number, y: number, text: string, color: string, size: number = 50) => {
+        const pt = state.popTextPool.get();
+        pt.spawn(x, y, text, color, size);
+        state.popTexts.push(pt);
+    };
+
+    const spawnParticles = (x: number, y: number, color: string, count: number) => {
+        for(let i=0; i<count; i++) {
+            const p = state.particlePool.get();
+            p.spawn(x, y, color);
+            state.particles.push(p);
+        }
+    };
+
     const executePower = () => {
       state.powerCharge = 0;
       callbacks.current.onPowerUpdate(0);
@@ -531,8 +636,10 @@ const GameCanvas: React.FC<GameCanvasProps> = (props) => {
       for (let i = state.entities.length - 1; i >= 0; i--) {
         if (state.entities[i].type === 'mine') {
           const m = state.entities[i];
-          state.popTexts.push(new PopText(m.x, m.y, "KABOOM!", "orange", 70));
-          for(let p=0; p<20; p++) state.particles.push(new Particle(m.x, m.y, '#FF4500'));
+          spawnPopText(m.x, m.y, "KABOOM!", "orange", 70);
+          spawnParticles(m.x, m.y, '#FF4500', 20);
+          
+          state.entityPool.release(m);
           state.entities.splice(i, 1);
           state.score += 50;
         }
@@ -552,10 +659,10 @@ const GameCanvas: React.FC<GameCanvasProps> = (props) => {
       if (state.mission.current >= state.mission.goal) {
         state.score += 300;
         state.timeLeft += 5;
-        state.popTexts.push(new PopText(state.width / 2, state.height / 2, "MISSION COMPLETE!", "#FFD700", 90));
+        spawnPopText(state.width / 2, state.height / 2, "MISSION COMPLETE!", "#FFD700", 90);
         state.screenFlash = 0.5;
         state.shake = 20;
-        for(let p=0; p<40; p++) state.particles.push(new Particle(state.width/2, state.height/2, '#00BFFF'));
+        spawnParticles(state.width/2, state.height/2, '#00BFFF', 40);
         try { soundManager.playMissionComplete(); } catch(e) {}
         state.mission = generateMission();
       }
@@ -581,8 +688,13 @@ const GameCanvas: React.FC<GameCanvasProps> = (props) => {
       if (!isPaused) {
         state.lastTime = time;
 
-        state.clouds.forEach(c => c.update(state.width, time));
-        state.panels.forEach(p => p.update(state.width, state.height));
+        // Throttle background updates slightly if needed, but keeping smooth for now
+        // Batch background updates
+        const lenClouds = state.clouds.length;
+        for(let i=0; i<lenClouds; i++) state.clouds[i].update(state.width, time);
+        
+        const lenPanels = state.panels.length;
+        for(let i=0; i<lenPanels; i++) state.panels[i].update(state.width, state.height);
 
         if (state.hitStop > 0) {
           state.hitStop--;
@@ -617,54 +729,80 @@ const GameCanvas: React.FC<GameCanvasProps> = (props) => {
         if (state.entities.length < 5) currentSpawnChance = 0.50; 
         
         if (state.entities.length < maxEntities && Math.random() < currentSpawnChance) {
-          state.entities.push(new Entity(state.width, state.height, difficulty, state.mission?.type));
+          const ent = state.entityPool.get();
+          ent.spawn(state.width, state.height, difficulty, state.mission?.type);
+          state.entities.push(ent);
         }
 
+        // Optimize collision loop
+        const playerX = state.player.x;
+        const playerY = state.player.y;
+        const isDashing = state.player.dashing;
+
         for (let i = state.entities.length - 1; i >= 0; i--) {
-          const t = state.entities[i]; t.update(state.width, state.height);
-          const dist = Math.hypot(state.player.x - t.x, state.player.y - t.y);
-          if (dist < t.radius + 35 && state.player.dashing) {
-            if (t.type === 'mine') {
-              state.timeLeft -= 5; 
-              state.score = Math.max(0, state.score - 75); 
-              state.combo = 0;
-              state.shake = 35; state.hitStop = 12; 
-              try { soundManager.playMineHit(); } catch(e) {}
-              updateMissionState(); // Reset streak mission progress if applicable
-            } else {
-              state.shake = 15; state.hitStop = 4; state.combo++;
-              state.powerCharge = Math.min(100, state.powerCharge + 10); 
-              callbacks.current.onPowerUpdate(state.powerCharge);
-
-              const multiplier = 1 + Math.floor(state.combo / 5);
-              state.score += 15 * multiplier; state.timeLeft += 1.2;
+          const t = state.entities[i]; 
+          t.update(state.width, state.height);
+          
+          if (isDashing) {
+              // Squared distance check is faster
+              const distSq = (playerX - t.x) * (playerX - t.x) + (playerY - t.y) * (playerY - t.y);
+              const hitRadius = t.radius + 35;
               
-              const words = ["BONK!", "POW!", "SMASH!", "WHACK!", "BAM!", "ZAP!"];
-              state.popTexts.push(new PopText(t.x, t.y - 40, words[Math.floor(Math.random()*words.length)], t.color));
-              for(let p=0; p<15; p++) state.particles.push(new Particle(t.x, t.y, t.color));
-              try { soundManager.playSmash(); } catch(e) {}
+              if (distSq < hitRadius * hitRadius) {
+                if (t.type === 'mine') {
+                  state.timeLeft -= 5; 
+                  state.score = Math.max(0, state.score - 75); 
+                  state.combo = 0;
+                  state.shake = 35; state.hitStop = 12; 
+                  try { soundManager.playMineHit(); } catch(e) {}
+                  updateMissionState(); 
+                } else {
+                  state.shake = 15; state.hitStop = 4; state.combo++;
+                  state.powerCharge = Math.min(100, state.powerCharge + 10); 
+                  callbacks.current.onPowerUpdate(state.powerCharge);
 
-              // PROGRESS NON-STREAK MISSIONS
-              if (state.mission) {
-                if (state.mission.type === 'hunt_any') {
-                  state.mission.current++;
-                } else if (state.mission.type === 'hunt_fast' && t.type === 'fast') {
-                  state.mission.current++;
+                  const multiplier = 1 + Math.floor(state.combo / 5);
+                  state.score += 15 * multiplier; state.timeLeft += 1.2;
+                  
+                  const words = ["BONK!", "POW!", "SMASH!", "WHACK!", "BAM!", "ZAP!"];
+                  spawnPopText(t.x, t.y - 40, words[Math.floor(Math.random()*words.length)], t.color);
+                  spawnParticles(t.x, t.y, t.color, 15);
+                  try { soundManager.playSmash(); } catch(e) {}
+
+                  // PROGRESS NON-STREAK MISSIONS
+                  if (state.mission) {
+                    if (state.mission.type === 'hunt_any') {
+                      state.mission.current++;
+                    } else if (state.mission.type === 'hunt_fast' && t.type === 'fast') {
+                      state.mission.current++;
+                    }
+                    updateMissionState();
+                  }
                 }
-                updateMissionState();
+                callbacks.current.onScoreUpdate(state.score);
+                callbacks.current.onComboUpdate(state.combo);
+                
+                state.entityPool.release(t);
+                state.entities.splice(i, 1);
               }
-            }
-            callbacks.current.onScoreUpdate(state.score);
-            callbacks.current.onComboUpdate(state.combo);
-            state.entities.splice(i, 1);
           }
         }
 
         for (let i = state.particles.length - 1; i >= 0; i--) {
-          state.particles[i].update(); if (state.particles[i].life <= 0) state.particles.splice(i, 1);
+          const p = state.particles[i];
+          p.update(); 
+          if (!p.active) {
+              state.particlePool.release(p);
+              state.particles.splice(i, 1);
+          }
         }
         for (let i = state.popTexts.length - 1; i >= 0; i--) {
-          state.popTexts[i].update(); if (state.popTexts[i].life <= 0) state.popTexts.splice(i, 1);
+          const pt = state.popTexts[i];
+          pt.update(); 
+          if (!pt.active) {
+              state.popTextPool.release(pt);
+              state.popTexts.splice(i, 1);
+          }
         }
         if (state.shake > 0) state.shake *= 0.88;
 
@@ -677,6 +815,7 @@ const GameCanvas: React.FC<GameCanvasProps> = (props) => {
         }
       } else state.lastTime = time;
       
+      // --- DRAWING ---
       ctx.save();
       const rx = (Math.random() - 0.5) * state.shake;
       const ry = (Math.random() - 0.5) * state.shake;
@@ -684,28 +823,43 @@ const GameCanvas: React.FC<GameCanvasProps> = (props) => {
       
       ctx.fillStyle = '#FFD700'; ctx.fillRect(0,0, state.width, state.height);
       
+      // Background batch
       ctx.save();
       const parallaxX = -(state.mouse.x - state.width / 2) * 0.02;
       ctx.translate(parallaxX, 0);
       ctx.fillStyle = 'rgba(0,0,0,0.05)';
       const bWidth = 80;
-      state.buildings.forEach((h, i) => {
+      // Optimize building loop
+      const bLen = state.buildings.length;
+      for(let i=0; i<bLen; i++) {
+        const h = state.buildings[i];
         ctx.fillRect(i * bWidth, state.height - h, bWidth - 10, h);
-        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      }
+      // Batch windows drawing
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      for(let i=0; i<bLen; i++) {
+        const h = state.buildings[i];
         for (let wy = 0; wy < h - 20; wy += 30) {
-          ctx.fillRect(i * bWidth + 10, state.height - h + wy + 10, 15, 15);
-          ctx.fillRect(i * bWidth + 45, state.height - h + wy + 10, 15, 15);
+           ctx.fillRect(i * bWidth + 10, state.height - h + wy + 10, 15, 15);
+           ctx.fillRect(i * bWidth + 45, state.height - h + wy + 10, 15, 15);
         }
-        ctx.fillStyle = 'rgba(0,0,0,0.05)';
-      });
+      }
       ctx.restore();
 
-      state.panels.forEach(p => p.draw(ctx));
-      state.clouds.forEach(c => c.draw(ctx));
+      const pLen = state.panels.length;
+      for(let i=0; i<pLen; i++) state.panels[i].draw(ctx);
+      
+      const cLen = state.clouds.length;
+      for(let i=0; i<cLen; i++) state.clouds[i].draw(ctx);
 
-      state.entities.forEach(t => t.draw(ctx));
-      state.particles.forEach(p => p.draw(ctx));
-      state.popTexts.forEach(p => p.draw(ctx));
+      const eLen = state.entities.length;
+      for(let i=0; i<eLen; i++) state.entities[i].draw(ctx);
+      
+      const partLen = state.particles.length;
+      for(let i=0; i<partLen; i++) state.particles[i].draw(ctx);
+      
+      const popLen = state.popTexts.length;
+      for(let i=0; i<popLen; i++) state.popTexts[i].draw(ctx);
 
       drawHammer(ctx, state.player.x, state.player.y, state.player.angle, hammerConfig, state.powerCharge >= 100);
 
