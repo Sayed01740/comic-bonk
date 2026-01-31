@@ -1,9 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { SolanaWalletProvider } from './components/SolanaWalletProvider';
 import GameCanvas, { HammerConfig } from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
-import { connectEVM, connectSolana, mintHighScoreNFT } from './utils/wallet';
+import { connectEVM, mintHighScoreNFT } from './utils/wallet';
 
-const App: React.FC = () => {
+const GameContent: React.FC = () => {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
   const [gameOver, setGameOver] = useState(false);
@@ -12,7 +15,7 @@ const App: React.FC = () => {
   const [missionInfo, setMissionInfo] = useState({ description: "GET READY!", progress: "" });
   const [powerCharge, setPowerCharge] = useState(0);
   const [powerRequested, setPowerRequested] = useState(false);
-  
+
   const [highScore, setHighScore] = useState(0);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
 
@@ -24,7 +27,12 @@ const App: React.FC = () => {
   });
 
   const [evmAddress, setEvmAddress] = useState<string | null>(null);
-  const [solanaAddress, setSolanaAddress] = useState<string | null>(null);
+
+  // SOLANA HOOKS
+  const { publicKey, wallet, signMessage, sendTransaction } = useWallet();
+  const { setVisible } = useWalletModal();
+  const solanaAddress = publicKey ? publicKey.toBase58() : null;
+
   const [isMinting, setIsMinting] = useState(false);
   const [hasMinted, setHasMinted] = useState(false);
 
@@ -66,26 +74,31 @@ const App: React.FC = () => {
     if (address) setEvmAddress(address);
   }, []);
 
-  const handleConnectSolana = useCallback(async () => {
-    const address = await connectSolana();
-    if (address) setSolanaAddress(address);
-  }, []);
+  // Open Solana Wallet Modal
+  const handleConnectSolana = useCallback(() => {
+    setVisible(true);
+  }, [setVisible]);
 
   const handleMintNFT = useCallback(async () => {
     if (!evmAddress && !solanaAddress) { alert("Please connect a wallet first!"); return; }
     setIsMinting(true);
     const address = evmAddress || solanaAddress || "";
     const chain = evmAddress ? 'EVM' : 'SOL';
-    const success = await mintHighScoreNFT(score, address, chain);
+
+    // Pass wallet context for signing if on Solana
+    // We'll update the util function to handle this or just pass it as an extra arg it might ignore for now
+    const walletContext = chain === 'SOL' ? { signMessage, sendTransaction, publicKey } : undefined;
+
+    const success = await mintHighScoreNFT(score, address, chain, walletContext);
     setIsMinting(false);
     if (success) setHasMinted(true);
-  }, [evmAddress, solanaAddress, score]);
+  }, [evmAddress, solanaAddress, score, signMessage, sendTransaction, publicKey]);
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-comic-yellow font-comic cursor-crosshair">
-      <GameCanvas 
+      <GameCanvas
         key={gameKey}
-        onScoreUpdate={setScore} 
+        onScoreUpdate={setScore}
         onTimeUpdate={setTimeLeft}
         onGameOver={handleGameOver}
         onMissionUpdate={(d, p) => setMissionInfo({ description: d, progress: p })}
@@ -96,7 +109,7 @@ const App: React.FC = () => {
         hammerConfig={hammerConfig}
         isPaused={isCustomizing}
       />
-      <UIOverlay 
+      <UIOverlay
         score={score} highScore={highScore} timeLeft={timeLeft} gameOver={gameOver} combo={combo}
         onRestart={handleRestart} missionDescription={missionInfo.description} missionProgress={missionInfo.progress}
         evmAddress={evmAddress} solanaAddress={solanaAddress} onConnectEVM={handleConnectEVM} onConnectSolana={handleConnectSolana}
@@ -106,6 +119,14 @@ const App: React.FC = () => {
         powerCharge={powerCharge} onTriggerPower={triggerPower}
       />
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <SolanaWalletProvider>
+      <GameContent />
+    </SolanaWalletProvider>
   );
 };
 
