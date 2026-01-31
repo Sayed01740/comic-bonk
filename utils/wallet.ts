@@ -1,24 +1,6 @@
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { SOLANA_CONFIG } from '../config/solana';
 
-export const connectEVM = async (): Promise<string | null> => {
-  if (typeof window === 'undefined') return null;
-
-  const { ethereum } = window as any;
-  if (!ethereum) {
-    alert("EVM Wallet not found! Please install MetaMask or Coinbase Wallet.");
-    return null;
-  }
-
-  try {
-    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-    return accounts[0] || null;
-  } catch (error) {
-    console.error("EVM Connection Error:", error);
-    return null;
-  }
-};
-
 export const truncateAddress = (address: string) => {
   if (!address) return '';
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
@@ -27,7 +9,7 @@ export const truncateAddress = (address: string) => {
 export const mintHighScoreNFT = async (
   score: number,
   address: string,
-  chain: 'EVM' | 'SOL',
+  chain: 'SOL',
   walletContext?: any
 ): Promise<boolean> => {
 
@@ -85,11 +67,5 @@ export const mintHighScoreNFT = async (
     }
   }
 
-  // EVM / DEFAULT SIMULATION
-  return new Promise((resolve) => {
-    console.log(`Minting NFT for score: ${score} on ${chain} to ${address}`);
-    setTimeout(() => {
-      resolve(true);
-    }, 2000); // Simulate network delay
-  });
+  return false;
 };

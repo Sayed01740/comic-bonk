@@ -13,9 +13,7 @@ interface UIOverlayProps {
   onRestart: () => void;
   missionDescription: string;
   missionProgress: string;
-  evmAddress: string | null;
   solanaAddress: string | null;
-  onConnectEVM: () => void;
   onConnectSolana: () => void;
   isCustomizing: boolean;
   onToggleCustomize: () => void;
@@ -31,19 +29,17 @@ interface UIOverlayProps {
 
 const UIOverlay: React.FC<UIOverlayProps> = ({
   score, highScore, timeLeft, gameOver, combo, onRestart, missionDescription, missionProgress,
-  evmAddress, solanaAddress, onConnectEVM, onConnectSolana, isCustomizing, onToggleCustomize,
+  solanaAddress, onConnectSolana, isCustomizing, onToggleCustomize,
   hammerConfig, onUpdateHammerConfig, isNewHighScore, onMintNFT, isMinting, hasMinted,
   powerCharge, onTriggerPower
 }) => {
   const displayTime = Math.max(0, Math.ceil(timeLeft));
   const isLowTime = displayTime <= 5;
   const isPowerReady = powerCharge >= 100;
-  const isConnected = !!evmAddress || !!solanaAddress;
+  const isConnected = !!solanaAddress;
 
   return (
     <div className="absolute inset-0 pointer-events-none select-none z-10 flex flex-col justify-between p-5">
-
-
 
       {/* Top HUD */}
       <div className="flex justify-between items-start w-full relative mt-8 md:mt-0">
@@ -113,10 +109,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             </button>
           </div>
           <div className="w-auto md:w-1/4 flex flex-col items-end gap-2 pointer-events-auto z-20">
-            <button onClick={onConnectEVM} disabled={!!evmAddress} className={`px-3 py-1 border-2 border-black font-bold text-sm md:text-base shadow-[2px_2px_0_rgba(0,0,0,0.5)] ${evmAddress ? 'bg-green-400 text-black' : 'bg-blue-500 text-white hover:bg-blue-400 -rotate-1'}`}>
-              {evmAddress ? `BASE: ${truncateAddress(evmAddress)}` : 'CONNECT BASE'}
-            </button>
-            {/* REMOVED OLD SOL BUTTON HERE */}
           </div>
         </div>
       )}
@@ -183,16 +175,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                     <p className="text-center font-bold text-gray-700 mb-2">Connect a wallet to mint your score as an NFT!</p>
                     <div className="flex gap-2">
                       <button
-                        onClick={onConnectEVM}
-                        className="flex-1 bg-blue-600 text-white border-2 border-black font-black py-2 shadow-[2px_2px_0_#000] hover:scale-105 active:scale-95 transition-transform"
-                      >
-                        BASE
-                      </button>
-                      <button
                         onClick={onConnectSolana}
                         className="flex-1 bg-purple-600 text-white border-2 border-black font-black py-2 shadow-[2px_2px_0_#000] hover:scale-105 active:scale-95 transition-transform"
                       >
-                        SOLANA
+                        CONNECT SOLANA
                       </button>
                     </div>
                   </div>
@@ -211,7 +197,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                         {isMinting ? 'MINTING...' : 'MINT SCORE NFT!'}
                       </button>
                     )}
-                    <p className="mt-2 text-xs font-bold text-gray-500">Connected: {truncateAddress(evmAddress || solanaAddress || '')}</p>
+                    <p className="mt-2 text-xs font-bold text-gray-500">Connected: {truncateAddress(solanaAddress || '')}</p>
                   </div>
                 )}
               </div>

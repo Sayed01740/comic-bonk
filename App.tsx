@@ -4,7 +4,7 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { SolanaWalletProvider } from './components/SolanaWalletProvider';
 import GameCanvas, { HammerConfig } from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
-import { connectEVM, mintHighScoreNFT } from './utils/wallet';
+import { mintHighScoreNFT } from './utils/wallet';
 
 const GameContent: React.FC = () => {
   const [score, setScore] = useState(0);
@@ -25,8 +25,6 @@ const GameContent: React.FC = () => {
     color: 'classic',
     handleType: 'wood'
   });
-
-  const [evmAddress, setEvmAddress] = useState<string | null>(null);
 
   // SOLANA HOOKS
   const { publicKey, wallet, signMessage, sendTransaction } = useWallet();
@@ -69,30 +67,22 @@ const GameContent: React.FC = () => {
     setPowerRequested(false);
   }, []);
 
-  const handleConnectEVM = useCallback(async () => {
-    const address = await connectEVM();
-    if (address) setEvmAddress(address);
-  }, []);
-
   // Open Solana Wallet Modal
   const handleConnectSolana = useCallback(() => {
     setVisible(true);
   }, [setVisible]);
 
   const handleMintNFT = useCallback(async () => {
-    if (!evmAddress && !solanaAddress) { alert("Please connect a wallet first!"); return; }
+    if (!solanaAddress) { alert("Please connect your Solana wallet first!"); return; }
     setIsMinting(true);
-    const address = evmAddress || solanaAddress || "";
-    const chain = evmAddress ? 'EVM' : 'SOL';
 
     // Pass wallet context for signing if on Solana
-    // We'll update the util function to handle this or just pass it as an extra arg it might ignore for now
-    const walletContext = chain === 'SOL' ? { signMessage, sendTransaction, publicKey } : undefined;
+    const walletContext = { signMessage, sendTransaction, publicKey };
 
-    const success = await mintHighScoreNFT(score, address, chain, walletContext);
+    const success = await mintHighScoreNFT(score, solanaAddress, 'SOL', walletContext);
     setIsMinting(false);
     if (success) setHasMinted(true);
-  }, [evmAddress, solanaAddress, score, signMessage, sendTransaction, publicKey]);
+  }, [solanaAddress, score, signMessage, sendTransaction, publicKey]);
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-comic-yellow font-comic cursor-crosshair">
@@ -112,7 +102,7 @@ const GameContent: React.FC = () => {
       <UIOverlay
         score={score} highScore={highScore} timeLeft={timeLeft} gameOver={gameOver} combo={combo}
         onRestart={handleRestart} missionDescription={missionInfo.description} missionProgress={missionInfo.progress}
-        evmAddress={evmAddress} solanaAddress={solanaAddress} onConnectEVM={handleConnectEVM} onConnectSolana={handleConnectSolana}
+        solanaAddress={solanaAddress} onConnectSolana={handleConnectSolana}
         isCustomizing={isCustomizing} onToggleCustomize={() => setIsCustomizing(!isCustomizing)}
         hammerConfig={hammerConfig} onUpdateHammerConfig={setHammerConfig}
         isNewHighScore={isNewHighScore} onMintNFT={handleMintNFT} isMinting={isMinting} hasMinted={hasMinted}
