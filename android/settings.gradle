@@ -1,0 +1,33 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+    plugins {
+        id 'com.android.application' version '8.4.1'
+        id 'org.jetbrains.kotlin.android' version '2.1.0'
+    }
+}
+
+dependencyResolutionManagement {
+    // repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+
+        // Solana Mobile MWA artifacts
+        maven { url 'https://solana-mobile.github.io/mobile-wallet-adapter/maven' }
+        maven { url 'https://jitpack.io' }
+    }
+}
+
+rootProject.name = "android"
+
+include ':app'
+include ':capacitor-android'
+include ':capacitor-cordova-android-plugins'
+
+project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
+
+apply from: 'capacitor.settings.gradle'

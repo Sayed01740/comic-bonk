@@ -1,0 +1,57 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.4.1'
+    }
+    configurations.all {
+        resolutionStrategy {
+            force 'com.android.tools.build:gradle:8.4.1'
+        }
+    }
+}
+
+allprojects {
+    configurations.all {
+        resolutionStrategy {
+            // Force the kotlin-stdlib version to align with the project's Kotlin version
+            force "org.jetbrains.kotlin:kotlin-stdlib:2.1.0"
+
+            // Force SDK-34 compatible AndroidX versions
+            force "androidx.core:core:1.13.1"
+            force "androidx.core:core-ktx:1.13.1"
+            force "androidx.activity:activity:1.9.3"
+            force "androidx.activity:activity-ktx:1.9.3"
+            force "androidx.fragment:fragment:1.6.2"
+            force "androidx.webkit:webkit:1.8.0"
+
+            // Block navigationevent (it triggers SDK 36 requirement)
+            eachDependency { details ->
+                if (details.requested.group == "androidx.navigationevent") {
+                    details.useVersion("0.0.0")
+                    details.because("Remove navigationevent which requires compileSdk 36 / AGP 8.9+")
+                }
+            }
+        }
+    }
+}
+
+// Override Java compatibility for ALL subprojects to match our JDK 17
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+        }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

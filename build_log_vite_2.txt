@@ -1,0 +1,23 @@
+
+> comic-bonk@1.0.0 build
+> vite build
+
+[36mvite v4.5.14 [32mbuilding for production...[36m[39m
+
+/index.css doesn't exist at build time, it will remain unchanged to be resolved at runtime
+transforming...
+[32m✓[39m 44 modules transformed.
+[32m✓ built in 23.77s[39m
+[31m[commonjs--resolver] Failed to resolve entry for package "@metaplex-foundation/umi". The package may have incorrect main/module/exports specified in its package.json.[39m
+[31merror during build:
+Error: Failed to resolve entry for package "@metaplex-foundation/umi". The package may have incorrect main/module/exports specified in its package.json.
+    at packageEntryFailure (file:///C:/Users/sayed/comic-bonk!/node_modules/vite/dist/node/chunks/dep-827b23df.js:28726:11)
+    at resolvePackageEntry (file:///C:/Users/sayed/comic-bonk!/node_modules/vite/dist/node/chunks/dep-827b23df.js:28723:5)
+    at tryNodeResolve (file:///C:/Users/sayed/comic-bonk!/node_modules/vite/dist/node/chunks/dep-827b23df.js:28454:20)
+    at Object.resolveId (file:///C:/Users/sayed/comic-bonk!/node_modules/vite/dist/node/chunks/dep-827b23df.js:28213:28)
+    at file:///C:/Users/sayed/comic-bonk!/node_modules/rollup/dist/es/shared/node-entry.js:25544:40
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async PluginDriver.hookFirstAndGetPlugin (file:///C:/Users/sayed/comic-bonk!/node_modules/rollup/dist/es/shared/node-entry.js:25444:28)
+    at async resolveId (file:///C:/Users/sayed/comic-bonk!/node_modules/rollup/dist/es/shared/node-entry.js:24117:26)
+    at async ModuleLoader.resolveId (file:///C:/Users/sayed/comic-bonk!/node_modules/rollup/dist/es/shared/node-entry.js:24531:15)
+    at async Object.resolveId (file:///C:/Users/sayed/comic-bonk!/node_modules/vite/dist/node/chunks/dep-827b23df.js:7911:10)[39m

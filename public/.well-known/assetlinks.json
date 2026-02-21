@@ -1,0 +1,14 @@
+[
+    {
+        "relation": [
+            "delegate_permission/common.handle_all_urls"
+        ],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "com.comicbonk.app",
+            "sha256_cert_fingerprints": [
+                "7A:65:9A:03:00:73:E7:BD:E5:A1:BD:23:96:0B:6A:01:9F:34:F1:B5:7A:43:8A:3D:2D:FC:BE:FF:4B:27:B2:2A"
+            ]
+        }
+    }
+]

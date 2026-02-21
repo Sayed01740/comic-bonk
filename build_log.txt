@@ -1,0 +1,6 @@
+
+> comic-bonk@1.0.0 build
+> tsc && vite build
+
+utils/mintGenesis.ts(9,8): error TS2307: Cannot find module '@metaplex-foundation/umi' or its corresponding type declarations.
+utils/mintScore.ts(9,8): error TS2307: Cannot find module '@metaplex-foundation/umi' or its corresponding type declarations.

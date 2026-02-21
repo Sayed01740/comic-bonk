@@ -1,0 +1,25 @@
+{
+    "name": "Comic Bonk Genesis Pass",
+    "symbol": "CBGP",
+    "description": "The official Genesis Pass for Comic Bonk. Grants access to the arena and special rewards.",
+    "image": "https://comic-bonk.vercel.app/genesis_nft.jpg",
+    "attributes": [
+        {
+            "trait_type": "Access",
+            "value": "Unlimited"
+        },
+        {
+            "trait_type": "Type",
+            "value": "Genesis"
+        }
+    ],
+    "properties": {
+        "files": [
+            {
+                "uri": "https://comic-bonk.vercel.app/genesis_nft.jpg",
+                "type": "image/jpeg"
+            }
+        ],
+        "category": "image"
+    }
+}
